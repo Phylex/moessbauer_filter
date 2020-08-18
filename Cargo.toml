@@ -1,0 +1,11 @@
+[package]
+name = "moessbauer_filter"
+version = "0.1.0"
+authors = ["Alexande Becker <becker.alexander42@gmail.com>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+memmap = "0.7.0"
+moessbauer_data = { path = "../moessbauer_data" }
