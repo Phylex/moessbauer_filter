@@ -8,6 +8,11 @@ use std::{
         TryInto,
         TryFrom,
     },
+    ptr::{
+        read_volatile,
+        write_volatile,
+    },
+    mem::size_of,
 };
 
 #[cfg(test)]
@@ -23,7 +28,8 @@ pub enum MBFError {
     InvalidState,
     NoParameters,
     FilterHalted,
-    FIFOFull
+    FIFOFull,
+    InvalidParameterRange,
 }
 
 pub enum MBFState {
@@ -51,8 +57,42 @@ impl TryFrom<u32> for MBFState {
     }
 }
 
+pub struct MBConfig {
+    k: u32,
+    l: u32,
+    m: u32,
+    pub pthresh: u32,
+    pub t_dead: u32
+}
+
+impl MBConfig {
+    pub fn new(k: u32, l: u32, m: u32, pthresh: u32, t_dead: u32) -> Result<MBConfig, MBFError> {
+        const M_WIDTH: u32 = 11;
+        const L_WIDTH: u32 = 7;
+        const K_WIDTH: u32 = 7;
+        if k > (2u32.pow(K_WIDTH)) {
+            return Err(MBFError::InvalidParameterRange)
+        } else if l > 2u32.pow(L_WIDTH) {
+            return Err(MBFError::InvalidParameterRange)
+        } else if m > 2u32.pow(M_WIDTH) {
+            return Err(MBFError::InvalidParameterRange)
+        } else {
+            return Ok(MBConfig { k, l, m, pthresh, t_dead })
+        }
+    }
+
+    pub fn get_trapezoidal_filter_config(&self) -> u32 {
+        const M_MASK: u32 = 0x7ff;
+        const M_WIDTH: usize = 11;
+        const L_MASK: u32 = 0x7f;
+        const L_WIDTH: usize = 7;
+        const K_MASK: u32 = 0x7f;
+        ((self.k & K_MASK) << (L_WIDTH + M_WIDTH)) |  ((self.l & L_MASK) << M_WIDTH) | (self.m & M_MASK)
+    }
+}
+
 pub struct MBFilter {
-    pub filter_registers: MmapMut,
+    filter_registers: MmapMut,
 }
 
 impl MBFilter {
@@ -72,5 +112,13 @@ impl MBFilter {
         const STATUS_ADDR: usize = 0x0c;
         let raw_state = u32::from_ne_bytes(self.filter_registers[STATUS_ADDR..STATUS_ADDR+4].try_into().unwrap());
         raw_state.try_into().expect("The Filter hardware seems to be broken => PANIC" )
+    }
+
+    pub fn configure(&mut self, config: MBConfig) {
+        const CONFIG_BASE_ADDR: usize = 0x10;
+        let pthresh_reg: &mut [u8;4] = self.filter_registers[CONFIG_BASE_ADDR..CONFIG_BASE_ADDR+4].try_into().unwrap();
+        *pthresh_reg = config.pthresh.to_ne_bytes();
+        let mut t_dead_reg: [u8;4] = self.filter_registers[CONFIG_BASE_ADDR+4..2*size_of::<u32>()].try_into().unwrap();
+        t_dead_reg = config.t_dead.to_ne_bytes();
     }
 }
