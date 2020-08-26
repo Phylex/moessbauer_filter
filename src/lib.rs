@@ -1,7 +1,3 @@
-use memmap::{
-    MmapOptions,
-    MmapMut,
-};
 use std::{
     fs::OpenOptions,
     convert::{
@@ -9,10 +5,27 @@ use std::{
         TryFrom,
     },
     ptr::{
+        null_mut,
         read_volatile,
         write_volatile,
     },
     mem::size_of,
+    ffi::CString,
+    str,
+};
+use libc::{
+    open,
+    mmap,
+    munmap,
+    c_void,
+    c_int,
+    size_t,
+    off_t,
+    PROT_READ,
+    PROT_WRITE,
+    MAP_SHARED,
+    O_RDWR,
+    O_SYNC,
 };
 
 #[cfg(test)]
@@ -30,6 +43,7 @@ pub enum MBFError {
     FilterHalted,
     FIFOFull,
     InvalidParameterRange,
+    MmapCallFailed,
 }
 
 pub enum MBFState {
@@ -92,33 +106,49 @@ impl MBConfig {
 }
 
 pub struct MBFilter {
-    filter_registers: MmapMut,
+    filter_registers: *mut u32,
 }
 
 impl MBFilter {
-    pub fn new () -> Result<MBFilter, std::io::Error> {
-        const MBFILTER_BASE_ADDR: u64 = 0x42000000;
-        let file = OpenOptions::new().read(true).write(true).open("/dev/mem")?;
-        let mmap = unsafe {
-            MmapOptions::new()
-                .offset(MBFILTER_BASE_ADDR)
-                .len(4096)
-                .map_mut(&file)?
-        };
-        Ok(MBFilter { filter_registers : mmap })
+    pub fn new () -> Result<MBFilter, MBFError> {
+        const MBFILTER_BASE_ADDR: off_t = 0x42000000;
+        const MBFILTER_MAP_SIZE: size_t = 4096;
+        unsafe {
+            let path = CString::new(b"/dev/mem" as &[u8]).unwrap();
+            let file = open(path.as_ptr(), O_RDWR | O_SYNC);
+            if file == 0 {
+                Err(MBFError::MmapCallFailed)
+            } else {
+                let addr: *mut c_void = null_mut();
+                let map = mmap(addr, MBFILTER_MAP_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, file, MBFILTER_BASE_ADDR) as *mut u32;
+                Ok(MBFilter { filter_registers: map })
+            }
+        }
     }
 
     pub fn state(&self) -> MBFState {
-        const STATUS_ADDR: usize = 0x0c;
-        let raw_state = u32::from_ne_bytes(self.filter_registers[STATUS_ADDR..STATUS_ADDR+4].try_into().unwrap());
-        raw_state.try_into().expect("The Filter hardware seems to be broken => PANIC" )
+        unsafe {
+            const STATUS_ADDR: isize = 0x0c;
+            let raw_state = read_volatile(self.filter_registers.offset(STATUS_ADDR/4));
+            raw_state.try_into().unwrap()
+        }
     }
 
-    pub fn configure(&mut self, config: MBConfig) {
-        const CONFIG_BASE_ADDR: usize = 0x10;
-        let pthresh_reg: &mut [u8;4] = self.filter_registers[CONFIG_BASE_ADDR..CONFIG_BASE_ADDR+4].try_into().unwrap();
-        *pthresh_reg = config.pthresh.to_ne_bytes();
-        let mut t_dead_reg: [u8;4] = self.filter_registers[CONFIG_BASE_ADDR+4..2*size_of::<u32>()].try_into().unwrap();
-        t_dead_reg = config.t_dead.to_ne_bytes();
+    pub fn configure(&self, config: MBConfig) {
+        unsafe {
+            const CONFIG_BASE_ADDR: isize = 0x10;
+            write_volatile(self.filter_registers.offset(CONFIG_BASE_ADDR/4), config.t_dead);
+            write_volatile(self.filter_registers.offset((CONFIG_BASE_ADDR+4)/4), config.pthresh);
+            write_volatile(self.filter_registers.offset((CONFIG_BASE_ADDR+8)/4), config.get_trapezoidal_filter_config());
+        }
+    }
+
+    pub fn read(&self, buf: &mut [u8]) -> Result<usize, MBFError> {
+        Err(MBFError::FilterHalted)
+    }
+}
+
+impl Drop for MBFilter {
+    fn drop(&mut self) {
     }
 }
