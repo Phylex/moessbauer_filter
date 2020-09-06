@@ -42,12 +42,36 @@ pub enum MBFError {
     MmapCallFailed,
 }
 
+/// Enum encoding the states of the filter hardware
+///
+/// Representation of the States of the Filter. The appropriate states also
+/// encompas the current amount of frames in the buffer in the enum.
 pub enum MBFState {
+    /// The filter currently does not have a valid set of configuration
+    /// parameters. They fist have to be supplied. This automatically happens
+    /// when the MBFilter::new() function is called.
     InvalidParameters,
+    /// When the filter is halted using the MBFilter::stop() call and there are
+    /// events remaining in the FIFO the Filter enters this state. To exit this
+    /// state and to trnsition to ready the remaining frames in the fifo need to
+    /// be read out. The state transition happens automatically after the last
+    /// frame has been read from the filter.
     FIFOFull{frame_count: u32},
+    /// The Filter has a valid configuration and there are no frames are currently
+    /// in the FIFO. This is the only state that can accept a new configuration
+    /// for the filter parameters. The configure call will return an error if the
+    /// Filter is not in this state.
     Ready,
+    /// The Filter is currently running and writing detected Frames into the FIFO.
+    /// The FIFO can be read during normal operation. This needs to happen as the
+    /// FIFO otherwise will be filled in a matter of Milliseconds under normal
+    /// operating conditions.
     Running{frame_count: u32},
-    Halted{frame_count: u32},
+    /// If the FIFO is filled to capacity and the filter tries to place another event
+    /// in the FIFO the filter is halted, as to stop the currently detected Data from
+    /// being overwritten. When a filter is halted the Reset Flag must be set so that
+    /// the Filter can transition to the 
+    Halted,
 }
 
 impl TryFrom<u32> for MBFState {
@@ -158,9 +182,8 @@ impl MBFilter {
                 let read_frames = self.read_available_frames_to_buf(buf, frame_count as usize);
                 Ok(read_frames * FRAME_LEN)
             },
-            MBFState::Halted{frame_count} => {
-                let read_frames = self.read_available_frames_to_buf(buf, frame_count as usize);
-                Ok(read_frames * FRAME_LEN)
+            MBFState::Halted => {
+                Err(MBFError::FilterHalted)
             }
         }
     }
