@@ -9,7 +9,6 @@ use std::{
         write_volatile,
     },
     ffi::CString,
-    process::exit
 };
 use libc::{
     open,
@@ -87,7 +86,10 @@ impl TryFrom<u32> for MBFState {
             3 => Ok(MBFState::Ready),
             4 => Ok(MBFState::Running{frame_count}),
             5 => Ok(MBFState::Halted),
-            _ => Err(MBFError::InvalidState),
+            _ => {
+                println!("current state: {}", state);
+                Err(MBFError::InvalidState)
+            },
         }
     }
 }
