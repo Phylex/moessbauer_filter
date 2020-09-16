@@ -9,6 +9,7 @@ use std::{
         write_volatile,
     },
     ffi::CString,
+    process::exit
 };
 use libc::{
     open,
@@ -70,7 +71,7 @@ pub enum MBFState {
     /// If the FIFO is filled to capacity and the filter tries to place another event
     /// in the FIFO the filter is halted, as to stop the currently detected Data from
     /// being overwritten. When a filter is halted the Reset Flag must be set so that
-    /// the Filter can transition to the 
+    /// the Filter can transition to the
     Halted,
 }
 
@@ -85,7 +86,7 @@ impl TryFrom<u32> for MBFState {
             2 => Ok(MBFState::FIFOFull{frame_count}),
             3 => Ok(MBFState::Ready),
             4 => Ok(MBFState::Running{frame_count}),
-            5 => Ok(MBFState::Halted{frame_count}),
+            5 => Ok(MBFState::Halted),
             _ => Err(MBFError::InvalidState),
         }
     }
@@ -115,6 +116,55 @@ impl MBConfig {
         }
     }
 
+    pub fn new_from_str(k: &str, l: &str, m: &str, pthresh:&str, t_dead: &str) -> Result<MBConfig, MBFError> {
+        let rval = u32::from_str_radix(k, 10);
+        let k: u32;
+        match rval {
+            Ok(val) => k = val,
+            Err(_) => {
+                println!("Please enter a whole number value for k");
+                return Err(MBFError::NoParameters);
+            }
+        };
+        let rval = u32::from_str_radix(l,10);
+        let l: u32;
+        match rval {
+            Ok(val) => l = val,
+            Err(_) => {
+                println!("Please enter a whole number value for l");
+                return Err(MBFError::NoParameters);
+            }
+        };
+        let rval = u32::from_str_radix(m, 10);
+        let m: u32;
+        match rval {
+            Ok(val) => m = val,
+            Err(_) => {
+                println!("Please enter a whole number value for l");
+                return Err(MBFError::NoParameters);
+            }
+        };
+        let rval = u32::from_str_radix(pthresh, 10);
+        let pthresh: u32;
+        match rval {
+            Ok(val) => pthresh = val,
+            Err(_) => {
+                println!("Please enter a whole number for the peak threshhold");
+                return Err(MBFError::NoParameters);
+            }
+        };
+        let rval = u32::from_str_radix(t_dead, 10);
+        let tdead: u32;
+        match rval {
+            Ok(val) => tdead = val,
+            Err(_) => {
+                println!("Please enter a whole number for the dead time");
+                return Err(MBFError::NoParameters);
+            }
+        };
+        Ok(MBConfig::new(k, l, m, pthresh, tdead)?)
+    }
+
     pub fn get_trapezoidal_filter_config(&self) -> u32 {
         const M_MASK: u32 = 0x7ff;
         const M_WIDTH: usize = 11;
@@ -130,7 +180,7 @@ pub struct MBFilter {
 }
 
 impl MBFilter {
-    pub fn new (config: MBConfig) -> Result<MBFilter, MBFError> {
+    pub fn new () -> Result<MBFilter, MBFError> {
         const MBFILTER_BASE_ADDR: off_t = 0x42000000;
         const MBFILTER_MAP_SIZE: size_t = 4096;
         let filter: MBFilter;
@@ -148,7 +198,6 @@ impl MBFilter {
                 filter = MBFilter { filter_registers: map };
             }
         }
-        filter.configure(config);
         Ok(filter)
     }
 
