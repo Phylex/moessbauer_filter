@@ -87,10 +87,7 @@ impl TryFrom<u32> for MBFState {
             3 => Ok(MBFState::Ready),
             4 => Ok(MBFState::Running{frame_count}),
             5 => Ok(MBFState::Halted),
-            _ => {
-                println!("current state: {}", state);
-                Err(MBFError::InvalidState)
-            },
+            _ => Err(MBFError::InvalidState),
         }
     }
 }
@@ -117,6 +114,13 @@ impl MBConfig {
         } else {
             return Ok(MBConfig { k, l, m, pthresh, t_dead })
         }
+    }
+
+    pub fn from_filter_registers(r1: u32, r2: u32, r3: u32) -> Result<MBConfig, MBFError> {
+        let k = MBConfig::k_from_filter_register(&r3);
+        let l = MBConfig::l_from_filter_register(&r3);
+        let m = MBConfig::m_from_filter_register(&r3);
+        MBConfig::new(k, l, m, r1, r2)
     }
 
     pub fn new_from_str(k: &str, l: &str, m: &str, pthresh:&str, t_dead: &str) -> Result<MBConfig, MBFError> {
@@ -168,7 +172,7 @@ impl MBConfig {
         Ok(MBConfig::new(k, l, m, pthresh, tdead)?)
     }
 
-    pub fn get_trapezoidal_filter_config(&self) -> u32 {
+    pub fn to_filter_format(&self) -> u32 {
         const M_MASK: u32 = 0x7ff;
         const M_WIDTH: usize = 11;
         const L_MASK: u32 = 0x7f;
@@ -176,6 +180,23 @@ impl MBConfig {
         const K_MASK: u32 = 0x7f;
         ((self.k & K_MASK) << (L_WIDTH + M_WIDTH)) |  ((self.l & L_MASK) << M_WIDTH) | (self.m & M_MASK)
     }
+
+    pub fn k_from_filter_register(r: &u32) -> u32 {
+        const M_WIDTH: usize = 11;
+        const L_WIDTH: usize = 7;
+        const K_MASK: u32 = 0x7f;
+        (r >> (L_WIDTH+M_WIDTH)) & K_MASK
+    }
+    pub fn l_from_filter_register(r: &u32) -> u32 {
+        const M_WIDTH: usize = 11;
+        const L_MASK: u32 = 0x7f;
+        (r >> M_WIDTH) & L_MASK
+    }
+    pub fn m_from_filter_register(r: &u32) -> u32 {
+        const M_MASK: u32 = 0x7ff;
+        r & M_MASK
+    }
+
 }
 
 pub struct MBFilter {
@@ -208,17 +229,30 @@ impl MBFilter {
         unsafe {
             const STATUS_ADDR: isize = 0x0c/4;
             let raw_state = read_volatile(self.filter_registers.offset(STATUS_ADDR));
-            println!("raw state: {}", raw_state);
             raw_state.try_into().unwrap()
         }
     }
+
+    pub fn configuration(&self) -> MBConfig {
+        let r1: u32;
+        let r2: u32;
+        let r3: u32;
+        unsafe {
+            const CONFIG_BASE_ADDR: isize = 0x10/4;
+            r1 = read_volatile(self.filter_registers.offset(CONFIG_BASE_ADDR));
+            r2 = read_volatile(self.filter_registers.offset(CONFIG_BASE_ADDR+1));
+            r3 = read_volatile(self.filter_registers.offset(CONFIG_BASE_ADDR+2));
+        }
+        MBConfig::from_filter_registers(r1, r2, r3).unwrap()
+    }
+
 
     pub fn configure(&self, config: MBConfig) {
         unsafe {
             const CONFIG_BASE_ADDR: isize = 0x10/4;
             write_volatile(self.filter_registers.offset(CONFIG_BASE_ADDR), config.t_dead);
             write_volatile(self.filter_registers.offset(CONFIG_BASE_ADDR+1), config.pthresh);
-            write_volatile(self.filter_registers.offset(CONFIG_BASE_ADDR+2), config.get_trapezoidal_filter_config());
+            write_volatile(self.filter_registers.offset(CONFIG_BASE_ADDR+2), config.to_filter_format());
         }
     }
 
