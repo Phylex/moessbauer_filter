@@ -1,4 +1,5 @@
 use std::{
+    fmt,
     convert::{
         TryInto,
         TryFrom,
@@ -92,12 +93,37 @@ impl TryFrom<u32> for MBFState {
     }
 }
 
+impl fmt::Display for MBFState {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            MBFState::InvalidParameters => write!(f, "The filter does not have any valid parameters\
+            please load a configuration"),
+            MBFState::FIFOFull{frame_count}=> write!(f, "The hardware FIFO is full at {} events,\
+            empty the hardware FIFO to be able to restart/continue the experiment", frame_count),
+            MBFState::Ready => write!(f, "The filter has a valid configuration and is ready to start measuring\
+            and FIFO is empty."),
+            MBFState::Running{frame_count} => write!(f, "The filter is currently running and has {} events in the FIFO", frame_count),
+            MBFState::Halted => write!(f, "The FIFO overflowed and the measurement was subsequently halted, check IO speed\
+            to prevent the FIFO from overflowing"),
+        }
+    }
+}
+
+
 pub struct MBConfig {
     k: u32,
     l: u32,
     m: u32,
     pub pthresh: u32,
     pub t_dead: u32
+}
+
+impl fmt::Display for MBConfig {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "Current filter Configuration:\n\tk:\t\t{}\n\tl:\t\t{}\
+        \n\tm:\t\t{}\n\tpeak threshhold:\t{}\n\tdead time:\t{}",
+        self.k, self.l, self.m, self.pthresh, self.t_dead)
+    }
 }
 
 impl MBConfig {
