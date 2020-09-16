@@ -78,8 +78,9 @@ impl TryFrom<u32> for MBFState {
     type Error = MBFError;
     fn try_from(raw_state: u32) -> Result<MBFState, MBFError> {
         const FRAME_COUNT_MASK: u32 = 0xfff;
+        const FRAME_COUNT_WIDTH: u32 = 12;
         let frame_count = raw_state & FRAME_COUNT_MASK;
-        let state = raw_state >> 12;
+        let state = raw_state >> FRAME_COUNT_WIDTH;
         match state {
             1 => Ok(MBFState::InvalidParameters),
             2 => Ok(MBFState::FIFOFull{frame_count}),
@@ -207,6 +208,7 @@ impl MBFilter {
         unsafe {
             const STATUS_ADDR: isize = 0x0c/4;
             let raw_state = read_volatile(self.filter_registers.offset(STATUS_ADDR));
+            println!("raw state: {}", raw_state);
             raw_state.try_into().unwrap()
         }
     }
