@@ -120,7 +120,7 @@ pub struct MBConfig {
 
 impl fmt::Display for MBConfig {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "Current filter Configuration:\n\tk:\t\t\t{}\n\t\tl:\t\t\t{}\
+        write!(f, "Current filter Configuration:\n\tk:\t\t\t{}\n\tl:\t\t\t{}\
         \n\tm:\t\t\t{}\n\tpeak threshhold:\t{}\n\tdead time:\t\t{}",
         self.k, self.l, self.m, self.pthresh, self.t_dead)
     }
