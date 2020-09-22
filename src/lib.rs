@@ -10,6 +10,7 @@ use std::{
         write_volatile,
     },
     ffi::CString,
+    error::Error,
 };
 use libc::{
     open,
@@ -42,6 +43,22 @@ pub enum MBFError {
     InvalidParameterRange,
     MmapCallFailed,
 }
+
+impl fmt::Display for MBFError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            MBFError::InvalidState => write!(f, "The filter is not in the required state"),
+            MBFError::NoParameters => write!(f, "The filter does not have a valid parameter set, please configure the filter"),
+            MBFError::FilterHalted => write!(f, "The fifo has overflowed and the filter has subsequently been halted"),
+            MBFError::InvalidParameterRange => write!(f, "The given parameters are out of the range supported by the filter.\
+                \nThe valid ranges are:\n\tk [0,128]\n\tl [0, 128]\n\tm [0,2048]"),
+            MBFError::FIFOFull => write!(f, "The fifo is filled, and is expected to be empty"),
+            MBFError::MmapCallFailed => write!(f, "The call for the memmory map failed. Please make sure that this is the only instance of the program running and that you are root"),
+        }
+    }
+}
+
+impl Error for MBFError {}
 
 /// Enum encoding the states of the filter hardware
 ///
@@ -97,14 +114,14 @@ impl fmt::Display for MBFState {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             MBFState::InvalidParameters => write!(f, "The filter does not have any valid parameters\
-            please load a configuration"),
+             please load a configuration"),
             MBFState::FIFOFull{frame_count}=> write!(f, "The hardware FIFO is full at {} events,\
-            empty the hardware FIFO to be able to restart/continue the experiment", frame_count),
+             empty the hardware FIFO to be able to restart/continue the experiment", frame_count),
             MBFState::Ready => write!(f, "The filter has a valid configuration and is ready to start measuring\
-            and FIFO is empty."),
+             and FIFO is empty."),
             MBFState::Running{frame_count} => write!(f, "The filter is currently running and has {} events in the FIFO", frame_count),
             MBFState::Halted => write!(f, "The FIFO overflowed and the measurement was subsequently halted, check IO speed\
-            to prevent the FIFO from overflowing"),
+             to prevent the FIFO from overflowing"),
         }
     }
 }
