@@ -344,7 +344,7 @@ impl MBFilter {
 
     pub fn start(&mut self) {
         const START_STOP_REGISTER_OFFSET: isize = 0x1c/4;
-        unsafe { write_volatile(self.filter_registers.offset(START_STOP_REGISTER_OFFSET), 1 as u32)};
+        unsafe { write_volatile(self.filter_registers.offset(START_STOP_REGISTER_OFFSET), 0 as u32)};
     }
 }
 
