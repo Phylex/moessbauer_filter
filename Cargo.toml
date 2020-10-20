@@ -9,3 +9,4 @@ edition = "2018"
 [dependencies]
 libc = "0.2.76"
 moessbauer_data = { path = "../moessbauer_data" }
+serde = { version = "1.0.116", features = ["derive"]}

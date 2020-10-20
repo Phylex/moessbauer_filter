@@ -126,7 +126,7 @@ impl fmt::Display for MBFState {
     }
 }
 
-
+#[derive(serde::Deserialize, Debug)]
 pub struct MBConfig {
     k: u32,
     l: u32,
@@ -144,19 +144,22 @@ impl fmt::Display for MBConfig {
 }
 
 impl MBConfig {
-    pub fn new(k: u32, l: u32, m: u32, pthresh: u32, t_dead: u32) -> Result<MBConfig, MBFError> {
+    pub fn validate(self) -> Result<Self, MBFError> {
         const M_WIDTH: u32 = 11;
         const L_WIDTH: u32 = 7;
         const K_WIDTH: u32 = 7;
-        if k > (2u32.pow(K_WIDTH)) {
+        if self.k > (2u32.pow(K_WIDTH)) {
             return Err(MBFError::InvalidParameterRange)
-        } else if l > 2u32.pow(L_WIDTH) {
+        } else if self.l > 2u32.pow(L_WIDTH) {
             return Err(MBFError::InvalidParameterRange)
-        } else if m > 2u32.pow(M_WIDTH) {
+        } else if self.m > 2u32.pow(M_WIDTH) {
             return Err(MBFError::InvalidParameterRange)
         } else {
-            return Ok(MBConfig { k, l, m, pthresh, t_dead })
+            return Ok(self)
         }
+    }
+    pub fn new(k: u32, l: u32, m: u32, pthresh: u32, t_dead: u32) -> Result<Self, MBFError> {
+        MBConfig { k, l, m, pthresh, t_dead}.validate()
     }
 
     pub fn from_filter_registers(r1: u32, r2: u32, r3: u32) -> Result<MBConfig, MBFError> {
@@ -245,6 +248,8 @@ impl MBConfig {
 pub struct MBFilter {
     filter_registers: *mut u32,
 }
+
+unsafe impl Send for MBFilter {} 
 
 impl MBFilter {
     pub fn new () -> Result<MBFilter, MBFError> {
