@@ -126,7 +126,7 @@ impl fmt::Display for MBFState {
     }
 }
 
-#[derive(serde::Deserialize, Debug)]
+#[derive(serde::Deserialize, Debug, Clone)]
 pub struct MBConfig {
     k: u32,
     l: u32,
