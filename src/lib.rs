@@ -334,9 +334,9 @@ impl MBFilter {
         }
         for i in 0..frames_to_read {
             for j in 0..3 {
-                let r = unsafe { read_volatile(self.filter_registers.offset(j)).to_ne_bytes()};
+                let r = unsafe { read_volatile(self.filter_registers.offset(j)).to_le_bytes()};
                 for k in 0..4 {
-                    buf[i * FRAME_LEN + (3-j) as usize * 4 + k as usize] = r[k as usize];
+                    buf[i * FRAME_LEN + j as usize * 4 + k as usize] = r[k as usize];
                 }
             }
         }
