@@ -299,8 +299,8 @@ impl MBFilter {
     pub fn configure(&self, config: MBConfig) {
         unsafe {
             const CONFIG_BASE_ADDR: isize = 0x10/4;
-            write_volatile(self.filter_registers.offset(CONFIG_BASE_ADDR), config.t_dead);
-            write_volatile(self.filter_registers.offset(CONFIG_BASE_ADDR+1), config.pthresh);
+            write_volatile(self.filter_registers.offset(CONFIG_BASE_ADDR), config.pthresh);
+            write_volatile(self.filter_registers.offset(CONFIG_BASE_ADDR+1), config.t_dead);
             write_volatile(self.filter_registers.offset(CONFIG_BASE_ADDR+2), config.to_filter_format());
         }
     }
