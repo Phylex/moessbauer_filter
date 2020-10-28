@@ -88,7 +88,8 @@ pub enum MBFState {
     /// If the FIFO is filled to capacity and the filter tries to place another event
     /// in the FIFO the filter is halted, as to stop the currently detected Data from
     /// being overwritten. When a filter is halted the Reset Flag must be set so that
-    /// the Filter can transition to the
+    /// the Filter can transition to the FIFOFull stage and the fifo can be read,
+    /// returning the filter to the Ready state
     Halted,
 }
 
@@ -126,7 +127,7 @@ impl fmt::Display for MBFState {
     }
 }
 
-#[derive(serde::Deserialize, Debug, Clone)]
+#[derive(serde::Deserialize, Debug, Clone, PartialEq)]
 pub struct MBConfig {
     k: u32,
     l: u32,
