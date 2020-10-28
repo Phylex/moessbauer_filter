@@ -167,7 +167,7 @@ impl MBConfig {
         let k = MBConfig::k_from_filter_register(&r3);
         let l = MBConfig::l_from_filter_register(&r3);
         let m = MBConfig::m_from_filter_register(&r3);
-        MBConfig::new(k, l, m, r1, r2)
+        MBConfig::new(k, l, m, r2, r1)
     }
 
     pub fn new_from_str(k: &str, l: &str, m: &str, pthresh:&str, t_dead: &str) -> Result<MBConfig, MBFError> {
@@ -299,8 +299,8 @@ impl MBFilter {
     pub fn configure(&self, config: MBConfig) {
         unsafe {
             const CONFIG_BASE_ADDR: isize = 0x10/4;
-            write_volatile(self.filter_registers.offset(CONFIG_BASE_ADDR), config.pthresh);
-            write_volatile(self.filter_registers.offset(CONFIG_BASE_ADDR+1), config.t_dead);
+            write_volatile(self.filter_registers.offset(CONFIG_BASE_ADDR), config.t_dead);
+            write_volatile(self.filter_registers.offset(CONFIG_BASE_ADDR+1), config.pthresh);
             write_volatile(self.filter_registers.offset(CONFIG_BASE_ADDR+2), config.to_filter_format());
         }
     }
