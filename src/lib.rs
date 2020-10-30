@@ -313,7 +313,7 @@ impl MBFilter {
                 let read_frames = self.read_available_frames_to_buf(buf, frame_count as usize);
                 Ok(read_frames * FRAME_LEN)
             },
-            MBFState::Ready => Ok(0),
+            MBFState::Ready => Err(MBFError::FilterHalted),
             MBFState::Running{frame_count} => {
                 let read_frames = self.read_available_frames_to_buf(buf, frame_count as usize);
                 Ok(read_frames * FRAME_LEN)
