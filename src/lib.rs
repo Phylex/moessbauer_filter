@@ -146,7 +146,7 @@ impl fmt::Display for MBConfig {
 
 impl MBConfig {
     pub fn validate(self) -> Result<Self, MBFError> {
-        const M_WIDTH: u32 = 11;
+        const M_WIDTH: u32 = 12;
         const L_WIDTH: u32 = 7;
         const K_WIDTH: u32 = 7;
         if self.k > (2u32.pow(K_WIDTH)) {
